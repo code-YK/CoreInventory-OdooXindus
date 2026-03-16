@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import type { Product, Receipt, Delivery, Transfer } from '@/lib/types';
+import type { Receipt, Delivery, Transfer } from '@/lib/types';
 import { Layout } from '@/components/Layout';
 import { StatusBadge } from '@/components/StatusBadge';
 import { TypeBadge } from '@/components/TypeBadge';
@@ -11,34 +11,48 @@ import { AlertTriangle, Package, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRigh
 type FilterType = 'all' | 'receipt' | 'delivery' | 'transfer';
 type FilterStatus = 'all' | 'draft' | 'confirmed' | 'done';
 
+type KpiData = {
+  total_products: number;
+  low_stock_count: number;
+  pending_receipts: number;
+  pending_deliveries: number;
+  pending_transfers: number;
+};
+
 export default function Dashboard() {
-  const [products, setProducts] = useState<Product[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [kpiData, setKpiData] = useState<KpiData | null>(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<FilterType>('all');
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
 
   useEffect(() => {
-    Promise.all([api.getProducts(), api.getReceipts(), api.getDeliveries(), api.getTransfers()]).then(([p, r, d, t]) => {
-      setProducts(p); setReceipts(r); setDeliveries(d); setTransfers(t);
+    Promise.all([
+      api.getReceipts(),
+      api.getDeliveries(),
+      api.getTransfers(),
+      api.getDashboardKpis(),
+    ]).then(([r, d, t, kpis]) => {
+      setReceipts(r); setDeliveries(d); setTransfers(t); setKpiData(kpis);
     });
   }, []);
 
-  const totalOnHand = products.reduce((s, p) => s + p.onHand, 0);
-  const lowStock = products.filter(p => p.onHand > 0 && p.onHand <= p.reorderPoint).length;
-  const outOfStock = products.filter(p => p.onHand === 0).length;
-  const pendingReceipts = receipts.filter(r => r.status !== 'done' && r.status !== 'cancelled').length;
-  const pendingDeliveries = deliveries.filter(d => d.status !== 'done' && d.status !== 'cancelled').length;
-
-  const kpis = [
-    { label: 'Total On Hand', value: totalOnHand.toLocaleString(), icon: Package, alert: false, trend: '+12%', trendUp: true },
-    { label: 'Low / Out of Stock', value: `${lowStock + outOfStock}`, icon: AlertTriangle, alert: lowStock + outOfStock > 0, trend: '-2', trendUp: false },
-    { label: 'Pending Receipts', value: pendingReceipts.toString(), icon: ArrowDownToLine, alert: false, trend: '3 due today', trendUp: true },
-    { label: 'Pending Deliveries', value: pendingDeliveries.toString(), icon: ArrowUpFromLine, alert: false, trend: '1 overdue', trendUp: false },
-    { label: 'Warehouses', value: '2', icon: Building2, alert: false, trend: '6 locations', trendUp: true },
+  const kpis = kpiData ? [
+    { label: 'Total Products', value: kpiData.total_products.toLocaleString(), icon: Package, alert: false, trend: 'in catalog', trendUp: true },
+    { label: 'Low / Out of Stock', value: `${kpiData.low_stock_count}`, icon: AlertTriangle, alert: kpiData.low_stock_count > 0, trend: 'needs review', trendUp: false },
+    { label: 'Pending Receipts', value: kpiData.pending_receipts.toString(), icon: ArrowDownToLine, alert: false, trend: 'inbound', trendUp: true },
+    { label: 'Pending Deliveries', value: kpiData.pending_deliveries.toString(), icon: ArrowUpFromLine, alert: false, trend: 'outbound', trendUp: true },
+    { label: 'Pending Transfers', value: kpiData.pending_transfers.toString(), icon: ArrowLeftRight, alert: false, trend: 'internal moves', trendUp: true },
+  ] : [
+    { label: 'Total Products', value: '—', icon: Package, alert: false, trend: 'loading…', trendUp: true },
+    { label: 'Low / Out of Stock', value: '—', icon: AlertTriangle, alert: false, trend: 'loading…', trendUp: false },
+    { label: 'Pending Receipts', value: '—', icon: ArrowDownToLine, alert: false, trend: 'loading…', trendUp: true },
+    { label: 'Pending Deliveries', value: '—', icon: ArrowUpFromLine, alert: false, trend: 'loading…', trendUp: true },
+    { label: 'Pending Transfers', value: '—', icon: Building2, alert: false, trend: 'loading…', trendUp: true },
   ];
+
 
   type OpRow = { type: 'receipt' | 'delivery' | 'transfer'; reference: string; partner: string; date: string; status: 'draft' | 'confirmed' | 'done' | 'cancelled'; lines: number };
   const operations: OpRow[] = [
@@ -70,13 +84,13 @@ export default function Dashboard() {
         </div>
 
         {/* Alert Banner */}
-        {outOfStock > 0 && (
+        {(kpiData?.low_stock_count ?? 0) > 0 && (
           <div className="flex items-center gap-3 px-4 py-3 rounded-xl animate-fade-in border border-primary/30 glow-primary" style={{ background: 'linear-gradient(135deg, hsl(0 68% 60% / 0.12), hsl(0 68% 60% / 0.04))' }}>
             <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
               <AlertTriangle className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <span className="text-sm font-medium"><span className="font-mono font-bold text-primary">{outOfStock}</span> product(s) out of stock</span>
+              <span className="text-sm font-medium"><span className="font-mono font-bold text-primary">{kpiData?.low_stock_count}</span> product(s) low or out of stock</span>
               <p className="text-xs text-muted-foreground mt-0.5">Review inventory immediately to prevent supply chain disruptions.</p>
             </div>
           </div>

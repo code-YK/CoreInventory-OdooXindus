@@ -11,7 +11,7 @@ export default function InventoryAdjustment() {
   const [applying, setApplying] = useState(false);
 
   useEffect(() => {
-    api.getProducts().then(prods => {
+    api.getProducts(1, 200).then(prods => {
       setProducts(prods);
       const initial: Record<number, number> = {};
       prods.forEach(p => { initial[p.id] = p.onHand; });

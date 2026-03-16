@@ -10,9 +10,18 @@ import { Button } from '@/components/ui/button';
 export default function Receipts() {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [isLastPage, setIsLastPage] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => { api.getReceipts().then(setReceipts); }, []);
+  const loadReceipts = async (pageToLoad = 1) => {
+    const rows = await api.getReceipts(pageToLoad, 20);
+    setReceipts(rows);
+    setIsLastPage(rows.length < 20);
+    setPage(pageToLoad);
+  };
+
+  useEffect(() => { loadReceipts(1); }, []);
 
   const filtered = receipts.filter(r => {
     const q = search.toLowerCase();
@@ -28,7 +37,14 @@ export default function Receipts() {
     <Layout>
       <div className="p-6 space-y-4 max-w-7xl">
         <h1 className="text-lg font-semibold">Receipts</h1>
-        <SearchBar value={search} onChange={setSearch} placeholder="Search by reference or supplier..." />
+        <div className="flex flex-wrap md:flex-row md:items-center md:justify-between gap-2">
+          <SearchBar value={search} onChange={setSearch} placeholder="Search by reference or supplier..." />
+          <div className="flex items-center gap-2 text-xs">
+            <button onClick={() => loadReceipts(Math.max(1, page - 1))} disabled={page === 1} className="btn-ghost btn-xs px-2 py-1 rounded-md border border-border disabled:opacity-40">← Prev</button>
+            <span className="text-muted-foreground">Page {page}</span>
+            <button onClick={() => !isLastPage && loadReceipts(page + 1)} disabled={isLastPage} className="btn-ghost btn-xs px-2 py-1 rounded-md border border-border disabled:opacity-40">Next →</button>
+          </div>
+        </div>
         <div className="bg-card border border-border rounded-lg overflow-hidden animate-fade-in">
           <table className="w-full text-sm">
             <thead>

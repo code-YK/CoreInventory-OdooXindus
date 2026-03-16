@@ -16,10 +16,19 @@ import { Plus } from 'lucide-react';
 export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [isLastPage, setIsLastPage] = useState(false);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: '', sku: '', category: 'Raw Material', uom: 'pcs', onHand: 0, reorderPoint: 10, reserved: 0, location: 'Main Store' });
 
-  useEffect(() => { api.getProducts().then(setProducts); }, []);
+  const loadProducts = async (pageNumber = 1) => {
+    const fetched = await api.getProducts(pageNumber, 20);
+    setProducts(fetched);
+    setIsLastPage(fetched.length < 20);
+    setPage(pageNumber);
+  };
+
+  useEffect(() => { loadProducts(1); }, []);
 
   const filtered = products.filter(p => {
     const q = search.toLowerCase();
@@ -29,8 +38,7 @@ export default function Products() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     await api.createProduct(form);
-    const updated = await api.getProducts();
-    setProducts(updated);
+    await loadProducts(page);
     setOpen(false);
     setForm({ name: '', sku: '', category: 'Raw Material', uom: 'pcs', onHand: 0, reorderPoint: 10, reserved: 0, location: 'Main Store' });
   };
@@ -89,7 +97,14 @@ export default function Products() {
           </Dialog>
         </div>
 
-        <SearchBar value={search} onChange={setSearch} placeholder="Search by name or SKU..." />
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+          <SearchBar value={search} onChange={setSearch} placeholder="Search by name or SKU..." />
+          <div className="flex items-center gap-2 text-xs">
+            <button onClick={() => loadProducts(Math.max(1, page - 1))} disabled={page === 1} className="btn-ghost btn-xs px-2 py-1 rounded-md border border-border disabled:opacity-40">← Prev</button>
+            <span className="text-muted-foreground">Page {page}</span>
+            <button onClick={() => !isLastPage && loadProducts(page + 1)} disabled={isLastPage} className="btn-ghost btn-xs px-2 py-1 rounded-md border border-border disabled:opacity-40">Next →</button>
+          </div>
+        </div>
 
         <div className="bg-card border border-border rounded-lg overflow-hidden animate-fade-in">
           <table className="w-full text-sm">

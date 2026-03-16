@@ -10,9 +10,18 @@ import { Button } from '@/components/ui/button';
 export default function Deliveries() {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [isLastPage, setIsLastPage] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => { api.getDeliveries().then(setDeliveries); }, []);
+  const loadDeliveries = async (pageToLoad = 1) => {
+    const rows = await api.getDeliveries(pageToLoad, 20);
+    setDeliveries(rows);
+    setIsLastPage(rows.length < 20);
+    setPage(pageToLoad);
+  };
+
+  useEffect(() => { loadDeliveries(1); }, []);
 
   const filtered = deliveries.filter(d => {
     const q = search.toLowerCase();
@@ -27,7 +36,14 @@ export default function Deliveries() {
   return (
     <Layout>
       <div className="p-6 space-y-4 max-w-7xl">
-        <h1 className="text-lg font-semibold">Delivery Orders</h1>
+        <div className="flex flex-wrap md:flex-row md:items-center md:justify-between gap-2">
+          <h1 className="text-lg font-semibold">Delivery Orders</h1>
+          <div className="flex items-center gap-2 text-xs">
+            <button onClick={() => loadDeliveries(Math.max(1, page - 1))} disabled={page === 1} className="btn-ghost btn-xs px-2 py-1 rounded-md border border-border disabled:opacity-40">← Prev</button>
+            <span className="text-muted-foreground">Page {page}</span>
+            <button onClick={() => !isLastPage && loadDeliveries(page + 1)} disabled={isLastPage} className="btn-ghost btn-xs px-2 py-1 rounded-md border border-border disabled:opacity-40">Next →</button>
+          </div>
+        </div>
         <SearchBar value={search} onChange={setSearch} placeholder="Search by reference or customer..." />
         <div className="bg-card border border-border rounded-lg overflow-hidden animate-fade-in">
           <table className="w-full text-sm">

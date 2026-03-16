@@ -13,13 +13,29 @@ const typeColors: Record<string, string> = {
 
 export default function Locations() {
   const [locations, setLocations] = useState<Loc[]>([]);
+  const [page, setPage] = useState(1);
+  const [isLastPage, setIsLastPage] = useState(false);
 
-  useEffect(() => { api.getLocations().then(setLocations); }, []);
+  const loadLocations = async (pageToLoad = 1) => {
+    const rows = await api.getLocations(pageToLoad, 20);
+    setLocations(rows);
+    setIsLastPage(rows.length < 20);
+    setPage(pageToLoad);
+  };
+
+  useEffect(() => { loadLocations(1); }, []);
 
   return (
     <Layout>
       <div className="p-6 space-y-4 max-w-7xl">
-        <h1 className="text-lg font-semibold">Locations</h1>
+        <div className="flex flex-wrap md:flex-row md:items-center md:justify-between gap-2">
+          <h1 className="text-lg font-semibold">Locations</h1>
+          <div className="flex items-center gap-2 text-xs">
+            <button onClick={() => loadLocations(Math.max(1, page - 1))} disabled={page === 1} className="btn-ghost btn-xs px-2 py-1 rounded-md border border-border disabled:opacity-40">← Prev</button>
+            <span className="text-muted-foreground">Page {page}</span>
+            <button onClick={() => !isLastPage && loadLocations(page + 1)} disabled={isLastPage} className="btn-ghost btn-xs px-2 py-1 rounded-md border border-border disabled:opacity-40">Next →</button>
+          </div>
+        </div>
         <div className="bg-card border border-border rounded-lg overflow-hidden animate-fade-in">
           <table className="w-full text-sm">
             <thead>

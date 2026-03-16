@@ -2,7 +2,7 @@ export type Status = 'draft' | 'confirmed' | 'done' | 'cancelled';
 export type OperationType = 'receipt' | 'delivery' | 'transfer' | 'adjustment';
 
 export interface Product {
-  id: number;
+  id: string;
   name: string;
   sku: string;
   category: string;
@@ -15,8 +15,8 @@ export interface Product {
 }
 
 export interface LineItem {
-  id: number;
-  productId: number;
+  id: string;
+  productId: string;
   productName: string;
   demand: number;
   done: number;
@@ -24,7 +24,7 @@ export interface LineItem {
 }
 
 export interface Receipt {
-  id: number;
+  id: string;
   reference: string;
   supplier: string;
   scheduledDate: string;
@@ -33,7 +33,7 @@ export interface Receipt {
 }
 
 export interface Delivery {
-  id: number;
+  id: string;
   reference: string;
   customer: string;
   scheduledDate: string;
@@ -42,7 +42,7 @@ export interface Delivery {
 }
 
 export interface Transfer {
-  id: number;
+  id: string;
   reference: string;
   fromLocation: string;
   toLocation: string;
@@ -52,7 +52,7 @@ export interface Transfer {
 }
 
 export interface MoveRecord {
-  id: number;
+  id: string;
   date: string;
   reference: string;
   product: string;
@@ -63,7 +63,7 @@ export interface MoveRecord {
 }
 
 export interface Warehouse {
-  id: number;
+  id: string;
   name: string;
   code: string;
   address: string;
@@ -71,7 +71,7 @@ export interface Warehouse {
 }
 
 export interface Location {
-  id: number;
+  id: string;
   name: string;
   code: string;
   warehouse: string;

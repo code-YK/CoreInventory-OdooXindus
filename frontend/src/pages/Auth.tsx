@@ -17,20 +17,31 @@ export default function Auth() {
   const [name, setName] = useState('');
   const [otpEmail, setOtpEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [error, setError] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     setLoading(true);
-    await api.login(email, password);
+    const result = await api.login(email, password);
     setLoading(false);
+    if (!result.success) {
+      setError(result.message ?? 'Invalid credentials or server not reachable. Please try again.');
+      return;
+    }
     navigate('/dashboard');
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     setLoading(true);
-    await api.signup(email, password, name);
+    const result = await api.signup(email, password);
     setLoading(false);
+    if (!result.success) {
+      setError(result.message ?? 'Signup failed. Please check the backend and try again.');
+      return;
+    }
     navigate('/dashboard');
   };
 
@@ -122,8 +133,7 @@ export default function Auth() {
             <h1 className="font-bold text-lg text-foreground">CoreInventory</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Warehouse Management System</p>
           </div>
-        </div>
-        <Tabs value={tab} onValueChange={setTab} className="w-full">
+        </div>        {error && <div className="mb-2 text-xs text-red-500 text-center font-semibold">{error}</div>}        <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsList className="w-full bg-muted/50 rounded-xl h-11">
             <TabsTrigger value="login" className="flex-1 rounded-xl text-xs uppercase tracking-wider font-semibold data-[state=active]:bg-surface data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all">Login</TabsTrigger>
             <TabsTrigger value="signup" className="flex-1 rounded-xl text-xs uppercase tracking-wider font-semibold data-[state=active]:bg-surface data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all">Sign Up</TabsTrigger>

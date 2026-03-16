@@ -61,10 +61,14 @@ export default function Profile() {
       toast({ title: 'Too short', description: 'Password must be at least 6 characters.', variant: 'destructive' });
       return;
     }
+    if (!profile) return;
     setLoading(true);
-    // Mock password change
-    await new Promise(r => setTimeout(r, 800));
+    const result = await api.resetPassword(profile.email, newPassword);
     setLoading(false);
+    if (!result.success) {
+      toast({ title: 'Error', description: 'Failed to update password. Try again.', variant: 'destructive' });
+      return;
+    }
     setOtpStep('idle');
     setOtp(['', '', '', '', '', '']);
     setNewPassword('');

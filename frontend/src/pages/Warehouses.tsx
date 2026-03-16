@@ -7,8 +7,17 @@ import { cn } from '@/lib/utils';
 
 export default function Warehouses() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [page, setPage] = useState(1);
+  const [isLastPage, setIsLastPage] = useState(false);
 
-  useEffect(() => { api.getWarehouses().then(setWarehouses); }, []);
+  const loadWarehouses = async (pageToLoad = 1) => {
+    const rows = await api.getWarehouses(pageToLoad, 12);
+    setWarehouses(rows);
+    setIsLastPage(rows.length < 12);
+    setPage(pageToLoad);
+  };
+
+  useEffect(() => { loadWarehouses(1); }, []);
 
   return (
     <Layout>
@@ -16,6 +25,13 @@ export default function Warehouses() {
         <div>
           <h1 className="text-xl font-bold tracking-tight">Warehouses</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Manage your storage facilities</p>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-xs text-muted-foreground">Page {page}</div>
+          <div className="flex items-center gap-2 text-xs">
+            <button onClick={() => loadWarehouses(Math.max(1, page - 1))} disabled={page === 1} className="btn-ghost btn-xs px-2 py-1 rounded-md border border-border disabled:opacity-40">← Prev</button>
+            <button onClick={() => !isLastPage && loadWarehouses(page + 1)} disabled={isLastPage} className="btn-ghost btn-xs px-2 py-1 rounded-md border border-border disabled:opacity-40">Next →</button>
+          </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {warehouses.map((w, idx) => (

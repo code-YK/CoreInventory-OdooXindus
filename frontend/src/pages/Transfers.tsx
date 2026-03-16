@@ -16,12 +16,21 @@ export default function Transfers() {
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [locations, setLocations] = useState<Loc[]>([]);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [isLastPage, setIsLastPage] = useState(false);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ from: '', to: '', product: '', qty: 0, uom: 'pcs', date: '' });
   const navigate = useNavigate();
 
+  const loadTransfers = async (pageToLoad = 1) => {
+    const rows = await api.getTransfers(pageToLoad, 20);
+    setTransfers(rows);
+    setIsLastPage(rows.length < 20);
+    setPage(pageToLoad);
+  };
+
   useEffect(() => {
-    Promise.all([api.getTransfers(), api.getLocations()]).then(([t, l]) => { setTransfers(t); setLocations(l); });
+    Promise.all([loadTransfers(1), api.getLocations()]).then(([tr, l]) => { setLocations(l); });
   }, []);
 
   const filtered = transfers.filter(t => {
@@ -31,7 +40,7 @@ export default function Transfers() {
 
   const handleStatus = async (id: number, status: 'confirmed' | 'done') => {
     await api.updateTransferStatus(id, status);
-    setTransfers(await api.getTransfers());
+    await loadTransfers(page);
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -42,7 +51,7 @@ export default function Transfers() {
       scheduledDate: form.date,
       lines: [{ productId: 1, productName: form.product, demand: form.qty, done: 0, uom: form.uom }],
     });
-    setTransfers(await api.getTransfers());
+    await loadTransfers(page);
     setOpen(false);
   };
 
@@ -94,7 +103,14 @@ export default function Transfers() {
           </Dialog>
         </div>
 
-        <SearchBar value={search} onChange={setSearch} placeholder="Search by reference or location..." />
+        <div className="flex flex-wrap md:flex-row md:items-center md:justify-between gap-2">
+          <SearchBar value={search} onChange={setSearch} placeholder="Search by reference or location..." />
+          <div className="flex items-center gap-2 text-xs">
+            <button onClick={() => loadTransfers(Math.max(1, page - 1))} disabled={page === 1} className="btn-ghost btn-xs px-2 py-1 rounded-md border border-border disabled:opacity-40">← Prev</button>
+            <span className="text-muted-foreground">Page {page}</span>
+            <button onClick={() => !isLastPage && loadTransfers(page + 1)} disabled={isLastPage} className="btn-ghost btn-xs px-2 py-1 rounded-md border border-border disabled:opacity-40">Next →</button>
+          </div>
+        </div>
 
         <div className="bg-card border border-border rounded-lg overflow-hidden animate-fade-in">
           <table className="w-full text-sm">

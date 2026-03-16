@@ -34,7 +34,7 @@ export function AppSidebar() {
   const [badges, setBadges] = useState<{ products: number; receipts: number }>({ products: 0, receipts: 0 });
 
   useEffect(() => {
-    Promise.all([api.getProducts(), api.getReceipts()]).then(([prods, recs]) => {
+    Promise.all([api.getProducts(1, 100), api.getReceipts()]).then(([prods, recs]) => {
       const lowStock = prods.filter(p => p.onHand <= p.reorderPoint).length;
       const confirmedReceipts = recs.filter(r => r.status === 'confirmed').length;
       setBadges({ products: lowStock, receipts: confirmedReceipts });

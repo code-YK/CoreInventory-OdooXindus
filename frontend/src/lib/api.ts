@@ -1,173 +1,338 @@
 import type { Product, Receipt, Delivery, Transfer, MoveRecord, Warehouse, Location, UserProfile, LineItem, Status } from './types';
 
-const products: Product[] = [
-  { id: 1, name: 'Steel Rods', sku: 'SR-001', category: 'Raw Material', uom: 'kg', onHand: 247, reserved: 20, reorderPoint: 50, location: 'Main Store', status: 'active' },
-  { id: 2, name: 'Industrial Bolts M12', sku: 'IB-012', category: 'Hardware', uom: 'pcs', onHand: 12, reserved: 0, reorderPoint: 20, location: 'Rack A2', status: 'active' },
-  { id: 3, name: 'Aluminum Sheet 2mm', sku: 'AL-002', category: 'Raw Material', uom: 'pcs', onHand: 80, reserved: 10, reorderPoint: 30, location: 'Main Store', status: 'active' },
-  { id: 4, name: 'Plastic Casing Type-B', sku: 'PC-B01', category: 'Components', uom: 'pcs', onHand: 0, reserved: 0, reorderPoint: 15, location: 'Rack C1', status: 'active' },
-  { id: 5, name: 'Copper Wire 10m', sku: 'CW-010', category: 'Raw Material', uom: 'rolls', onHand: 55, reserved: 5, reorderPoint: 10, location: 'Main Store', status: 'active' },
-];
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-const receipts: Receipt[] = [
-  { id: 1, reference: 'WH/IN/00001', supplier: 'Tata Steel Ltd', scheduledDate: '2026-03-10', status: 'confirmed', lines: [
-    { id: 1, productId: 1, productName: 'Steel Rods', demand: 100, done: 0, uom: 'kg' },
-    { id: 2, productId: 5, productName: 'Copper Wire 10m', demand: 20, done: 0, uom: 'rolls' },
-  ]},
-  { id: 2, reference: 'WH/IN/00002', supplier: 'Bharat Hardware', scheduledDate: '2026-03-15', status: 'draft', lines: [
-    { id: 3, productId: 2, productName: 'Industrial Bolts M12', demand: 500, done: 0, uom: 'pcs' },
-  ]},
-  { id: 3, reference: 'WH/IN/00003', supplier: 'Plastics India', scheduledDate: '2026-03-08', status: 'done', lines: [
-    { id: 4, productId: 4, productName: 'Plastic Casing Type-B', demand: 200, done: 200, uom: 'pcs' },
-  ]},
-];
+// ─── Core fetch helper ─────────────────────────────────────────────────────
+function getAuthHeader(): Record<string, string> {
+  const token = localStorage.getItem('token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
-const deliveries: Delivery[] = [
-  { id: 1, reference: 'WH/OUT/00001', customer: 'Reliance Infra', scheduledDate: '2026-03-12', status: 'confirmed', lines: [
-    { id: 1, productId: 1, productName: 'Steel Rods', demand: 50, done: 0, uom: 'kg' },
-  ]},
-  { id: 2, reference: 'WH/OUT/00002', customer: 'L&T Engineering', scheduledDate: '2026-03-18', status: 'draft', lines: [
-    { id: 2, productId: 3, productName: 'Aluminum Sheet 2mm', demand: 30, done: 0, uom: 'pcs' },
-    { id: 3, productId: 5, productName: 'Copper Wire 10m', demand: 10, done: 0, uom: 'rolls' },
-  ]},
-  { id: 3, reference: 'WH/OUT/00003', customer: 'Bosch India', scheduledDate: '2026-03-05', status: 'done', lines: [
-    { id: 4, productId: 2, productName: 'Industrial Bolts M12', demand: 100, done: 100, uom: 'pcs' },
-  ]},
-];
+async function fetchApi(endpoint: string, options: RequestInit = {}) {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...getAuthHeader(),
+    ...(options.headers as Record<string, string> | undefined),
+  };
 
-const transfers: Transfer[] = [
-  { id: 1, reference: 'WH/TRF/00001', fromLocation: 'Main Store', toLocation: 'Rack C1', scheduledDate: '2026-03-06', status: 'done', lines: [
-    { id: 1, productId: 4, productName: 'Plastic Casing Type-B', demand: 50, done: 50, uom: 'pcs' },
-  ]},
-  { id: 2, reference: 'WH/TRF/00002', fromLocation: 'Main Store', toLocation: 'Production Rack', scheduledDate: '2026-03-11', status: 'confirmed', lines: [
-    { id: 2, productId: 1, productName: 'Steel Rods', demand: 30, done: 0, uom: 'kg' },
-  ]},
-  { id: 3, reference: 'WH/TRF/00003', fromLocation: 'Rack A2', toLocation: 'Main Store', scheduledDate: '2026-03-14', status: 'draft', lines: [
-    { id: 3, productId: 2, productName: 'Industrial Bolts M12', demand: 12, done: 0, uom: 'pcs' },
-  ]},
-];
+  const response = await fetch(`${BASE_URL}${endpoint}`, { ...options, headers });
 
-const moveHistory: MoveRecord[] = [
-  { id: 1, date: '2026-03-14T09:30:00', reference: 'WH/TRF/00001', product: 'Plastic Casing Type-B', from: 'Main Store', to: 'Rack C1', qty: 50, type: 'transfer' },
-  { id: 2, date: '2026-03-13T14:15:00', reference: 'WH/IN/00003', product: 'Plastic Casing Type-B', from: 'Supplier', to: 'Main Store', qty: 200, type: 'receipt' },
-  { id: 3, date: '2026-03-12T11:00:00', reference: 'WH/OUT/00003', product: 'Industrial Bolts M12', from: 'Rack A2', to: 'Customer', qty: -100, type: 'delivery' },
-  { id: 4, date: '2026-03-11T08:45:00', reference: 'ADJ/00001', product: 'Steel Rods', from: '-', to: 'Main Store', qty: 10, type: 'adjustment' },
-  { id: 5, date: '2026-03-10T16:20:00', reference: 'WH/IN/00001', product: 'Copper Wire 10m', from: 'Supplier', to: 'Main Store', qty: 20, type: 'receipt' },
-  { id: 6, date: '2026-03-09T10:30:00', reference: 'WH/OUT/00001', product: 'Steel Rods', from: 'Main Store', to: 'Customer', qty: -50, type: 'delivery' },
-];
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail?.[0]?.msg || errorData.detail || `HTTP ${response.status}`);
+  }
 
-const warehouses: Warehouse[] = [
-  { id: 1, name: 'Main Warehouse', code: 'WH-MAIN', address: 'Plot 12, Industrial Area, Mumbai 400072', locationCount: 3 },
-  { id: 2, name: 'Production Floor', code: 'WH-PROD', address: 'Building B, Industrial Area, Mumbai 400072', locationCount: 1 },
-];
+  return response.json();
+}
 
-const locations: Location[] = [
-  { id: 1, name: 'Main Store', code: 'LOC-MS', warehouse: 'Main Warehouse', type: 'storage' },
-  { id: 2, name: 'Rack A2', code: 'LOC-A2', warehouse: 'Main Warehouse', type: 'storage' },
-  { id: 3, name: 'Rack C1', code: 'LOC-C1', warehouse: 'Main Warehouse', type: 'storage' },
-  { id: 4, name: 'Production Rack', code: 'LOC-PR', warehouse: 'Production Floor', type: 'production' },
-];
+// ─── Operation mapper ──────────────────────────────────────────────────────
+const mapOperationToUI = (op: any): any => ({
+  id: op.id,
+  reference: op.reference,
+  supplier: op.supplier || '',
+  customer: op.customer || '',
+  fromLocation: op.source_location_name || op.source_location_id || 'Unknown',
+  toLocation: op.dest_location_name || op.dest_location_id || 'Unknown',
+  scheduledDate: op.created_at,
+  status: op.status,
+  lines: op.items?.map((i: any) => ({
+    id: i.id || crypto.randomUUID(),
+    productId: i.product_id,
+    productName: i.product_name || 'Unknown',
+    demand: i.quantity,
+    done: op.status === 'done' ? i.quantity : 0,
+    uom: 'pcs',
+  })) || [],
+});
 
-const userProfile: UserProfile = {
-  name: 'Rajesh Kumar',
-  email: 'rajesh.kumar@coreinventory.com',
-  role: 'Inventory Manager',
-  avatar: 'RK',
-  lastLogin: '2026-03-14T08:30:00',
-};
+function paginate<T>(items: T[], page = 1, limit = 20): T[] {
+  const start = (Math.max(1, page) - 1) * Math.max(1, limit);
+  return items.slice(start, start + Math.max(1, limit));
+}
 
-// Simulate network delay
-const delay = (ms = 200) => new Promise(resolve => setTimeout(resolve, ms));
-
+// ─── API ───────────────────────────────────────────────────────────────────
 export const api = {
-  // Products
-  getProducts: async (): Promise<Product[]> => { await delay(); return [...products]; },
-  createProduct: async (data: Omit<Product, 'id' | 'status'>): Promise<Product> => {
-    await delay();
-    const p = { ...data, id: products.length + 1, status: 'active' as const };
-    products.push(p);
-    return p;
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  login: async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
+    try {
+      const res = await fetchApi('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+      localStorage.setItem('token', res.access_token);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Login failed' };
+    }
   },
 
-  // Receipts
-  getReceipts: async (): Promise<Receipt[]> => { await delay(); return [...receipts]; },
-  getReceipt: async (id: number): Promise<Receipt | undefined> => { await delay(); return receipts.find(r => r.id === id); },
-  updateReceiptStatus: async (id: number, status: Status): Promise<boolean> => {
-    await delay();
-    const r = receipts.find(r => r.id === id);
-    if (r) { r.status = status; return true; }
-    return false;
+  signup: async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
+    try {
+      const res = await fetchApi('/auth/signup', { method: 'POST', body: JSON.stringify({ email, password }) });
+      localStorage.setItem('token', res.access_token);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Signup failed' };
+    }
   },
 
-  // Deliveries
-  getDeliveries: async (): Promise<Delivery[]> => { await delay(); return [...deliveries]; },
-  getDelivery: async (id: number): Promise<Delivery | undefined> => { await delay(); return deliveries.find(d => d.id === id); },
-  updateDeliveryStatus: async (id: number, status: Status): Promise<boolean> => {
-    await delay();
-    const d = deliveries.find(d => d.id === id);
-    if (d) { d.status = status; return true; }
-    return false;
+  logout: () => { localStorage.removeItem('token'); },
+
+  resetPassword: async (email: string, newPassword: string): Promise<{ success: boolean }> => {
+    try {
+      await fetchApi('/auth/reset-password', { method: 'POST', body: JSON.stringify({ email, new_password: newPassword }) });
+      return { success: true };
+    } catch { return { success: false }; }
   },
 
-  // Transfers
-  getTransfers: async (): Promise<Transfer[]> => { await delay(); return [...transfers]; },
-  getTransfer: async (id: number): Promise<Transfer | undefined> => { await delay(); return transfers.find(t => t.id === id); },
-  createTransfer: async (data: { fromLocation: string; toLocation: string; lines: Omit<LineItem, 'id'>[]; scheduledDate: string }): Promise<Transfer> => {
-    await delay();
-    const t: Transfer = {
-      id: transfers.length + 1,
-      reference: `WH/TRF/${String(transfers.length + 1).padStart(5, '0')}`,
-      fromLocation: data.fromLocation,
-      toLocation: data.toLocation,
-      scheduledDate: data.scheduledDate,
-      status: 'draft',
-      lines: data.lines.map((l, i) => ({ ...l, id: i + 1 })),
+  // OTP is not in backend — these are UX stubs that jump to the real reset-password
+  requestOtp: async (_email: string): Promise<{ success: boolean }> => ({ success: true }),
+  verifyOtp: async (_email: string, _otp: string): Promise<{ success: boolean }> => ({ success: true }),
+
+  // ── Profile ───────────────────────────────────────────────────────────────
+  getProfile: async (): Promise<UserProfile> => {
+    const res = await fetchApi('/auth/me');
+    const name = res.email?.split('@')[0] || 'User';
+    const avatar = name.slice(0, 2).toUpperCase();
+    return {
+      name,
+      email: res.email,
+      role: res.role || 'Staff',
+      avatar,
+      lastLogin: new Date().toISOString(),
     };
-    transfers.push(t);
-    return t;
-  },
-  updateTransferStatus: async (id: number, status: Status): Promise<boolean> => {
-    await delay();
-    const t = transfers.find(t => t.id === id);
-    if (t) { t.status = status; return true; }
-    return false;
   },
 
-  // Move History
-  getMoveHistory: async (): Promise<MoveRecord[]> => { await delay(); return [...moveHistory].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); },
+  // ── Dashboard ─────────────────────────────────────────────────────────────
+  getDashboardKpis: async () => {
+    return fetchApi('/dashboard/kpis');
+  },
 
-  // Inventory Adjustment
-  applyAdjustments: async (adjustments: { productId: number; newQty: number }[]): Promise<boolean> => {
-    await delay();
-    adjustments.forEach(adj => {
-      const p = products.find(p => p.id === adj.productId);
-      if (p) {
-        const delta = adj.newQty - p.onHand;
-        moveHistory.unshift({
-          id: moveHistory.length + 1,
-          date: new Date().toISOString(),
-          reference: `ADJ/${String(moveHistory.length + 1).padStart(5, '0')}`,
-          product: p.name,
-          from: delta > 0 ? '-' : p.location,
-          to: delta > 0 ? p.location : '-',
-          qty: delta,
-          type: 'adjustment',
-        });
-        p.onHand = adj.newQty;
-      }
+  // ── Products ──────────────────────────────────────────────────────────────
+  getProducts: async (page = 1, limit = 20): Promise<Product[]> => {
+    const [products, inventory] = await Promise.all([
+      fetchApi('/products'),
+      fetchApi('/inventory'),
+    ]);
+    const data = products.map((p: any) => {
+      const inv = inventory.filter((i: any) => i.product_id === p.id);
+      const onHand = inv.reduce((acc: number, curr: any) => acc + curr.quantity, 0);
+      const reserved = inv.reduce((acc: number, curr: any) => acc + curr.reserved_qty, 0);
+      return {
+        id: p.id,
+        name: p.name,
+        sku: p.sku,
+        category: p.category_id || 'Unknown',
+        uom: p.unit,
+        onHand,
+        reserved,
+        reorderPoint: p.reorder_level,
+        location: inv[0]?.location_name || '—',
+        status: p.is_active ? 'active' : 'inactive',
+      };
     });
-    return true;
+    return paginate(data, page, limit);
   },
 
-  // Warehouses & Locations
-  getWarehouses: async (): Promise<Warehouse[]> => { await delay(); return [...warehouses]; },
-  getLocations: async (): Promise<Location[]> => { await delay(); return [...locations]; },
+  createProduct: async (data: Omit<Product, 'id' | 'status'>): Promise<Product> => {
+    const res = await fetchApi('/products', {
+      method: 'POST',
+      body: JSON.stringify({ name: data.name, sku: data.sku, unit: data.uom, reorder_level: data.reorderPoint || 0 }),
+    });
+    return { id: res.id, name: res.name, sku: res.sku, category: res.category_id || 'Unknown', uom: res.unit, onHand: 0, reserved: 0, reorderPoint: res.reorder_level, location: '—', status: res.is_active ? 'active' : 'inactive' };
+  },
 
-  // Profile
-  getProfile: async (): Promise<UserProfile> => { await delay(); return { ...userProfile }; },
+  updateProduct: async (id: string, data: Partial<Pick<Product, 'name' | 'sku' | 'uom' | 'reorderPoint'>>): Promise<boolean> => {
+    try {
+      await fetchApi(`/products/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name: data.name, sku: data.sku, unit: data.uom, reorder_level: data.reorderPoint }),
+      });
+      return true;
+    } catch { return false; }
+  },
 
-  // Auth (mock)
-  login: async (_email: string, _password: string): Promise<{ success: boolean }> => { await delay(500); return { success: true }; },
-  signup: async (_email: string, _password: string, _name: string): Promise<{ success: boolean }> => { await delay(500); return { success: true }; },
-  requestOtp: async (_email: string): Promise<{ success: boolean }> => { await delay(500); return { success: true }; },
-  verifyOtp: async (_email: string, _otp: string): Promise<{ success: boolean }> => { await delay(500); return { success: true }; },
+  deleteProduct: async (id: string): Promise<boolean> => {
+    try { await fetchApi(`/products/${id}`, { method: 'DELETE' }); return true; }
+    catch { return false; }
+  },
+
+  // ── Inventory ─────────────────────────────────────────────────────────────
+  getInventory: async () => fetchApi('/inventory'),
+
+  getLowStockProducts: async () => fetchApi('/inventory/low-stock'),
+
+  // ── Receipts ──────────────────────────────────────────────────────────────
+  getReceipts: async (page = 1, limit = 20): Promise<Receipt[]> => {
+    const res = await fetchApi('/receipts');
+    return paginate(res.map(mapOperationToUI), page, limit);
+  },
+
+  getReceipt: async (id: string): Promise<Receipt | undefined> => {
+    try { return mapOperationToUI(await fetchApi(`/receipts/${id}`)); }
+    catch { return undefined; }
+  },
+
+  updateReceiptStatus: async (id: string, status: Status): Promise<boolean> => {
+    try {
+      if (status === 'confirmed') await fetchApi(`/receipts/${id}/confirm`, { method: 'PUT' });
+      else if (status === 'done') await fetchApi(`/receipts/${id}/done`, { method: 'PUT' });
+      else if (status === 'cancelled') await fetchApi(`/receipts/${id}/cancel`, { method: 'PUT' });
+      return true;
+    } catch { return false; }
+  },
+
+  // ── Deliveries ────────────────────────────────────────────────────────────
+  getDeliveries: async (page = 1, limit = 20): Promise<Delivery[]> => {
+    const res = await fetchApi('/deliveries');
+    return paginate(res.map(mapOperationToUI), page, limit);
+  },
+
+  getDelivery: async (id: string): Promise<Delivery | undefined> => {
+    try { return mapOperationToUI(await fetchApi(`/deliveries/${id}`)); }
+    catch { return undefined; }
+  },
+
+  updateDeliveryStatus: async (id: string, status: Status): Promise<boolean> => {
+    try {
+      if (status === 'confirmed') await fetchApi(`/deliveries/${id}/confirm`, { method: 'PUT' });
+      else if (status === 'done') await fetchApi(`/deliveries/${id}/done`, { method: 'PUT' });
+      else if (status === 'cancelled') await fetchApi(`/deliveries/${id}/cancel`, { method: 'PUT' });
+      return true;
+    } catch { return false; }
+  },
+
+  // ── Transfers ─────────────────────────────────────────────────────────────
+  getTransfers: async (page = 1, limit = 20): Promise<Transfer[]> => {
+    const res = await fetchApi('/transfers');
+    return paginate(res.map(mapOperationToUI), page, limit);
+  },
+
+  getTransfer: async (id: string): Promise<Transfer | undefined> => {
+    try { return mapOperationToUI(await fetchApi(`/transfers/${id}`)); }
+    catch { return undefined; }
+  },
+
+  createTransfer: async (data: { fromLocation: string; toLocation: string; lines: Omit<LineItem, 'id'>[]; scheduledDate: string }): Promise<Transfer> => {
+    const res = await fetchApi('/transfers', {
+      method: 'POST',
+      body: JSON.stringify({
+        source_location_id: data.fromLocation,
+        dest_location_id: data.toLocation,
+        items: data.lines.map(l => ({ product_id: l.productId, quantity: l.demand })),
+      }),
+    });
+    return mapOperationToUI(res);
+  },
+
+  updateTransferStatus: async (id: string, status: Status): Promise<boolean> => {
+    try {
+      if (status === 'confirmed') await fetchApi(`/transfers/${id}/confirm`, { method: 'PUT' });
+      else if (status === 'done') await fetchApi(`/transfers/${id}/done`, { method: 'PUT' });
+      else if (status === 'cancelled') await fetchApi(`/transfers/${id}/cancel`, { method: 'PUT' });
+      return true;
+    } catch { return false; }
+  },
+
+  // ── Adjustments ───────────────────────────────────────────────────────────
+  applyAdjustments: async (adjustments: { productId: string; newQty: number }[]): Promise<boolean> => {
+    try {
+      const warehouses = await fetchApi('/warehouses');
+      if (!warehouses.length) return false;
+      const locs = await fetchApi(`/warehouses/${warehouses[0].id}/locations`);
+      if (!locs.length) return false;
+      await fetchApi('/adjustments', {
+        method: 'POST',
+        body: JSON.stringify({
+          location_id: locs[0].id,
+          items: adjustments.map(a => ({ product_id: a.productId, counted_quantity: a.newQty })),
+        }),
+      });
+      return true;
+    } catch { return false; }
+  },
+
+  getAdjustments: async (page = 1, limit = 20) => {
+    const all = await fetchApi('/adjustments');
+    return paginate(all, page, limit);
+  },
+
+  confirmAdjustment: async (id: string): Promise<boolean> => {
+    try { await fetchApi(`/adjustments/${id}/done`, { method: 'PUT' }); return true; }
+    catch { return false; }
+  },
+
+  // ── Move History ──────────────────────────────────────────────────────────
+  getMoveHistory: async (page = 1, limit = 20): Promise<MoveRecord[]> => {
+    const res = await fetchApi('/history');
+    return paginate(res.map((h: any) => ({
+      id: h.id,
+      date: h.created_at,
+      reference: h.reference,
+      product: h.items?.[0]?.product_name || 'Multiple',
+      from: h.source_location_name || '-',
+      to: h.dest_location_name || '-',
+      qty: h.items?.[0]?.quantity || 0,
+      type: h.type as any,
+    })), page, limit);
+  },
+
+  // ── Warehouses & Locations ────────────────────────────────────────────────
+  getWarehouses: async (page = 1, limit = 20): Promise<Warehouse[]> => {
+    const res = await fetchApi('/warehouses');
+    return paginate(res.map((w: any) => ({
+      id: w.id,
+      name: w.name,
+      code: w.short_code,
+      address: w.address || '',
+      locationCount: w.location_count || 0,
+    })), page, limit);
+  },
+
+  createWarehouse: async (data: { name: string; code: string; address?: string }): Promise<Warehouse> => {
+    const res = await fetchApi('/warehouses', {
+      method: 'POST',
+      body: JSON.stringify({ name: data.name, short_code: data.code, address: data.address }),
+    });
+    return { id: res.id, name: res.name, code: res.short_code, address: res.address || '', locationCount: 0 };
+  },
+
+  getLocations: async (page = 1, limit = 20): Promise<Location[]> => {
+    const warehouses = await fetchApi('/warehouses');
+    const allLocs: Location[] = [];
+    for (const w of warehouses) {
+      const locs = await fetchApi(`/warehouses/${w.id}/locations`);
+      allLocs.push(...locs.map((l: any) => ({
+        id: l.id,
+        name: l.name,
+        code: l.short_code || l.name,
+        warehouse: w.name,
+        type: 'storage' as const,
+      })));
+    }
+    return paginate(allLocs, page, limit);
+  },
+
+  createLocation: async (warehouseId: string, data: { name: string; code: string }): Promise<Location | null> => {
+    try {
+      const res = await fetchApi(`/warehouses/${warehouseId}/locations`, {
+        method: 'POST',
+        body: JSON.stringify({ name: data.name, short_code: data.code }),
+      });
+      return { id: res.id, name: res.name, code: res.short_code, warehouse: warehouseId, type: 'storage' };
+    } catch { return null; }
+  },
+
+  // ── Categories ────────────────────────────────────────────────────────────
+  getCategories: async (page = 1, limit = 20) => {
+    const res = await fetchApi('/categories');
+    return paginate(res, page, limit);
+  },
+
+  createCategory: async (name: string) => {
+    return fetchApi('/categories', { method: 'POST', body: JSON.stringify({ name }) });
+  },
+
+  deleteCategory: async (id: string): Promise<boolean> => {
+    try { await fetchApi(`/categories/${id}`, { method: 'DELETE' }); return true; }
+    catch { return false; }
+  },
 };
